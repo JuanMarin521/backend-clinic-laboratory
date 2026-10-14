@@ -1,30 +1,54 @@
-import { generateId } from '../utils/ids';
+import { db } from '../config/database';
 import type { ChatMessageRecord, ChatSender } from '../types/chat.types';
 
 /**
- * "Base de datos" en memoria de mensajes de soporte, agrupados por usuario.
- * La clave del mapa es el id del usuario autenticado.
+ * Repositorio de mensajes de soporte, respaldado por una base de datos SQLite real
+ * (tabla `chat_messages`). A diferencia de la version en memoria, el historial de
+ * conversaciones ahora persiste entre reinicios del servidor.
  */
-const conversationsByUser = new Map<string, ChatMessageRecord[]>();
+
+/** Forma cruda de una fila de la tabla `chat_messages`. */
+interface ChatMessageRow {
+  id: string;
+  user_id: string;
+  sender: string;
+  text: string;
+  created_at: string;
+}
+
+/** Convierte una fila de la base de datos al tipo `ChatMessageRecord` que usa el resto del codigo. */
+function toChatMessageRecord(row: ChatMessageRow): ChatMessageRecord {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    sender: row.sender as ChatSender,
+    text: row.text,
+    createdAt: row.created_at,
+  };
+}
 
 /** Agrega un mensaje a la conversacion del usuario y lo devuelve ya guardado. */
 export function appendMessage(userId: string, sender: ChatSender, text: string): ChatMessageRecord {
   const message: ChatMessageRecord = {
-    id: generateId('msg'),
+    id: `msg_${Date.now()}_${Math.round(Math.random() * 1_000_000)}`,
     userId,
     sender,
     text,
     createdAt: new Date().toISOString(),
   };
 
-  const history = conversationsByUser.get(userId) ?? [];
-  history.push(message);
-  conversationsByUser.set(userId, history);
+  db.prepare(
+    'INSERT INTO chat_messages (id, user_id, sender, text, created_at) VALUES (@id, @userId, @sender, @text, @createdAt)',
+  ).run(message);
 
   return message;
 }
 
-/** Devuelve el historial completo de mensajes de un usuario (vacio si nunca escribio). */
+/** Devuelve el historial completo de mensajes de un usuario (vacio si nunca escribio), en orden cronologico. */
 export function findConversationByUserId(userId: string): ChatMessageRecord[] {
-  return conversationsByUser.get(userId) ?? [];
+  const rows = db
+    .prepare<[string], ChatMessageRow>('SELECT * FROM chat_messages WHERE user_id = ? ORDER BY created_at ASC')
+    .all(userId);
+
+  return rows.map(toChatMessageRecord);
 }
