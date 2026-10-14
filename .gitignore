@@ -2,3 +2,10 @@ node_modules/
 dist/
 .env
 *.log
+
+# Base de datos SQLite local (se genera al arrancar el servidor)
+data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm

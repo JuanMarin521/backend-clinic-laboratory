@@ -4,10 +4,31 @@ API REST para la app móvil **CPO Conecta**, construida con **Node.js + Express 
 usando **arquitectura por capas** (config, middlewares, validators, controllers, services,
 repositories, exceptions) y **versionamiento de rutas** (`/api/v1`).
 
-> En este MVP no hay base de datos real: los repositorios guardan los datos **en memoria**
-> mientras el proceso está corriendo (se reinician al apagar el servidor). Cambiar esto por
-> una base de datos real solo implicaría reescribir la carpeta `repositories/`, sin tocar
-> controllers, services ni rutas.
+## 🗄️ Base de datos
+
+Los datos se guardan en una base de datos real **SQLite** (vía [`better-sqlite3`](https://github.com/WiseLibs/better-sqlite3)),
+en un único archivo `data/cpo-conecta.db` que se crea automáticamente al arrancar el servidor.
+A diferencia de una versión anterior de este MVP (que guardaba todo en memoria), **los datos
+ahora persisten entre reinicios**: si registras un usuario o envías un mensaje de chat y
+reinicias el servidor, siguen ahí.
+
+- `src/config/schema.ts` — define las 3 tablas (`users`, `exams`, `chat_messages`) como SQL puro.
+- `src/config/database.ts` — abre la conexión (un único `Database` compartido por toda la app)
+  y expone `runMigrations()`, que crea las tablas si no existen (seguro de llamar en cada arranque).
+- `src/repositories/*.ts` — son el **único** lugar que conoce SQL. Todas sus funciones
+  (`findUserByUsername`, `findAllExams`, `appendMessage`, etc.) conservan exactamente la misma
+  firma que tenían con el almacenamiento en memoria, así que controllers, services, middlewares
+  y rutas no cambiaron ni una línea al migrar a una base de datos real — ese es el beneficio
+  de tener la arquitectura separada por capas.
+
+No se usa ningún ORM a propósito: las consultas SQL están escritas a mano en cada repositorio,
+para que se vea exactamente qué hace cada una.
+
+### Reiniciar la base de datos desde cero
+
+```bash
+npm run db:reset   # borra data/cpo-conecta.db; se vuelve a crear vacía en el próximo arranque
+```
 
 ## 🧱 Arquitectura por capas
 
@@ -40,7 +61,9 @@ cp .env.example .env    # valores por defecto ya sirven para desarrollo
 npm run dev              # http://localhost:4000
 ```
 
-Al arrancar, el servidor crea un usuario de demostración:
+Al arrancar por primera vez, el servidor crea las tablas, el usuario de demostración
+y los 4 exámenes de ejemplo. Como ahora hay una base de datos real, esto solo pasa
+**una vez**: en los siguientes arranques, esos datos ya existen y no se duplican.
 
 ```
 usuario:    carlos.mendoza385
@@ -123,3 +146,4 @@ por ejemplo `http://192.168.1.10:4000/api/v1` (puedes verla con `ipconfig` en Wi
 | `JWT_EXPIRES_IN` | Duración del token | `2h` |
 | `BCRYPT_SALT_ROUNDS` | Costo del hash de contraseñas | `10` |
 | `CORS_ORIGIN` | Origen permitido para CORS | `*` |
+| `DATABASE_PATH` | Ruta del archivo SQLite | `./data/cpo-conecta.db` |

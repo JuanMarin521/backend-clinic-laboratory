@@ -40,6 +40,9 @@ export const env = {
 
   /** Origen permitido para peticiones CORS. */
   corsOrigin: requireEnv('CORS_ORIGIN', '*'),
+
+  /** Ruta del archivo de base de datos SQLite (relativa a la raiz del proyecto backend). */
+  databasePath: requireEnv('DATABASE_PATH', './data/cpo-conecta.db'),
 } as const;
 
 /** Indica si el servidor esta corriendo en modo desarrollo. */
