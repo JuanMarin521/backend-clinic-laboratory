@@ -1,7 +1,6 @@
 import { createApp } from './app';
 import { env } from './config/env';
 import { runMigrations } from './config/database';
-import { seedDemoExams } from './repositories/examRepository';
 import { ensureDemoUserExists } from './services/authService';
 
 /**
@@ -13,9 +12,9 @@ async function bootstrap(): Promise<void> {
   // Crea las tablas de la base de datos si todavia no existen (seguro de repetir).
   runMigrations();
 
-  // Carga los datos de demostracion. Al estar respaldados por una base de datos real,
-  // estos solo se insertan una vez: en los siguientes arranques ya existiran.
-  seedDemoExams();
+  // Carga el usuario de demostracion y sus examenes. Al estar respaldados por una
+  // base de datos real, esto solo se inserta una vez: en los siguientes arranques
+  // ya existiran y no se duplica.
   await ensureDemoUserExists();
 
   const app = createApp();

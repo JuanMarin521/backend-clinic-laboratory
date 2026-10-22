@@ -69,10 +69,13 @@ export function createUser(data: { fullName: string; username: string; passwordH
  * Carga un usuario de demostracion para poder probar el login sin registrarse antes.
  * Coincide con el usuario "Carlos Mendoza" que usan las pantallas de la app movil.
  * La contrasena de prueba es "lab2026". Es seguro llamarla en cada arranque del servidor:
- * si el usuario ya existe en la base de datos, no hace nada.
+ * si el usuario ya existe en la base de datos, no lo vuelve a crear.
+ * Devuelve el usuario (ya existente o recien creado) para que quien la llama
+ * pueda, por ejemplo, sembrarle examenes de demostracion.
  */
-export function seedDemoUser(passwordHash: string): void {
-  if (findUserByUsername('carlos.mendoza385')) return;
+export function seedDemoUser(passwordHash: string): UserRecord {
+  const existingUser = findUserByUsername('carlos.mendoza385');
+  if (existingUser) return existingUser;
 
-  createUser({ fullName: 'Carlos Mendoza', username: 'carlos.mendoza385', passwordHash });
+  return createUser({ fullName: 'Carlos Mendoza', username: 'carlos.mendoza385', passwordHash });
 }

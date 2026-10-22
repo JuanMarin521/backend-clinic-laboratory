@@ -1,4 +1,5 @@
 import { ConflictError, UnauthorizedError } from '../exceptions';
+import { seedDemoExamsForUser, seedStarterExamsForUser } from '../repositories/examRepository';
 import {
   createUser,
   findUserByUsername,
@@ -33,8 +34,12 @@ export async function registerUser(input: RegisterInput): Promise<AuthResult> {
 
   const passwordHash = await hashPassword(input.password);
   const newUser = createUser({ fullName: input.fullName, username: input.username, passwordHash });
-  const publicUser = toPublicUser(newUser);
 
+  // Todo paciente nuevo arranca con un par de examenes de ejemplo propios,
+  // para que la pantalla de Resultados no se vea vacia justo despues de registrarse.
+  seedStarterExamsForUser(newUser.id);
+
+  const publicUser = toPublicUser(newUser);
   return { user: publicUser, token: signAccessToken(publicUser) };
 }
 
@@ -63,11 +68,13 @@ export async function loginUser(input: LoginInput): Promise<AuthResult> {
 
 /**
  * Crea el usuario de demostracion ("carlos.mendoza385" / "lab2026") al arrancar el servidor,
- * para que el login funcione de inmediato sin tener que registrarse primero.
+ * junto con su conjunto de examenes de demostracion, para que el login y la pantalla
+ * de Resultados funcionen de inmediato sin tener que registrarse primero.
  */
 export async function ensureDemoUserExists(): Promise<void> {
   const demoPasswordHash = await hashPassword('lab2026');
-  seedDemoUser(demoPasswordHash);
+  const demoUser = seedDemoUser(demoPasswordHash);
+  seedDemoExamsForUser(demoUser.id);
 }
 
 // Se re-exporta para que otras capas (ej. authMiddleware) puedan normalizar nombres de usuario
