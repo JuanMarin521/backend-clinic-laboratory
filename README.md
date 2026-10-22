@@ -13,6 +13,9 @@ ahora persisten entre reinicios**: si registras un usuario o envías un mensaje 
 reinicias el servidor, siguen ahí.
 
 - `src/config/schema.ts` — define las 3 tablas (`users`, `exams`, `chat_messages`) como SQL puro.
+  `exams` tiene una columna `user_id`: **cada examen pertenece a un único paciente**. Un usuario
+  nunca puede ver ni descargar el examen de otro (toda consulta filtra por `user_id`, y pedir
+  el examen de otro paciente responde 404, no 403, para no revelar que existe).
 - `src/config/database.ts` — abre la conexión (un único `Database` compartido por toda la app)
   y expone `runMigrations()`, que crea las tablas si no existen (seguro de llamar en cada arranque).
 - `src/repositories/*.ts` — son el **único** lugar que conoce SQL. Todas sus funciones
@@ -62,13 +65,17 @@ npm run dev              # http://localhost:4000
 ```
 
 Al arrancar por primera vez, el servidor crea las tablas, el usuario de demostración
-y los 4 exámenes de ejemplo. Como ahora hay una base de datos real, esto solo pasa
-**una vez**: en los siguientes arranques, esos datos ya existen y no se duplican.
+y sus 4 exámenes. Como ahora hay una base de datos real, esto solo pasa **una vez**:
+en los siguientes arranques, esos datos ya existen y no se duplican.
 
 ```
 usuario:    carlos.mendoza385
 contraseña: lab2026
 ```
+
+Cualquier paciente que se registre (`POST /auth/register`) arranca con 2 exámenes propios
+de ejemplo en estado `processing`, distintos a los del usuario de demostración — así se puede
+comprobar que los exámenes están separados por paciente, no compartidos entre todos.
 
 Otros comandos:
 
@@ -78,23 +85,25 @@ npm run build        # compila a dist/
 npm start            # ejecuta la version compilada (requiere build previo)
 ```
 
-## 🔌 Endpoints (5 endpoints de negocio + 1 de salud)
+## 🔌 Endpoints (5 endpoints de negocio + descarga de archivo + salud)
 
-Todas las respuestas tienen la forma `{ success: boolean, data }` o `{ success: false, error }`.
+Todas las respuestas tienen la forma `{ success: boolean, data }` o `{ success: false, error }`,
+excepto la descarga del PDF, que devuelve el archivo binario directamente.
 
 | # | Método | Ruta | Auth | Descripción |
 |---|--------|------|------|-------------|
 | — | GET | `/api/v1/health` | No | Verifica que el servidor esté corriendo |
-| 1 | POST | `/api/v1/auth/register` | No | Registra un paciente nuevo y devuelve su token |
+| 1 | POST | `/api/v1/auth/register` | No | Registra un paciente nuevo, le crea 2 exámenes propios y devuelve su token |
 | 2 | POST | `/api/v1/auth/login` | No | Inicia sesión y devuelve el token (pantalla **Login**) |
-| 3 | GET | `/api/v1/exams` | Sí (Bearer) | Lista los exámenes y el resumen por estado (pantalla **Home/Resultados**) |
-| 4 | GET | `/api/v1/exams/:examId/pdf` | Sí (Bearer) | Info de descarga simulada del PDF (pantalla **Examen PDF**) |
+| 3 | GET | `/api/v1/exams` | Sí (Bearer) | Lista **solo los exámenes del paciente autenticado** y el resumen por estado (pantalla **Home/Resultados**) |
+| 4 | GET | `/api/v1/exams/:examId/pdf` | Sí (Bearer) | Metadatos de descarga del PDF (pantalla **Examen PDF**) |
+| 4b | GET | `/api/v1/exams/:examId/pdf/file` | Sí (Bearer) | El archivo PDF real (bytes), generado con `pdf-lib` |
 | 5 | POST | `/api/v1/support/messages` | Sí (Bearer) | Envía un mensaje y recibe la respuesta del asistente (pantalla **Atención**) |
 
 ### Ejemplos con `curl`
 
 ```bash
-# 1) Registro
+# 1) Registro (crea al paciente con 2 examenes propios en estado "processing")
 curl -X POST http://localhost:4000/api/v1/auth/register \
   -H "Content-Type: application/json" \
   -d '{"fullName":"Ana Torres","username":"ana.torres01","password":"clave1234"}'
@@ -106,11 +115,16 @@ curl -X POST http://localhost:4000/api/v1/auth/login \
 # -> copiar el "token" de la respuesta y guardarlo en una variable:
 TOKEN="pega_aqui_el_token"
 
-# 3) Listar examenes
+# 3) Listar MIS examenes (los ids son generados, copia uno de la respuesta anterior)
 curl http://localhost:4000/api/v1/exams -H "Authorization: Bearer $TOKEN"
+EXAM_ID="pega_aqui_un_id_de_examen_en_estado_ready"
 
-# 4) Info de PDF de un examen listo
-curl http://localhost:4000/api/v1/exams/1/pdf -H "Authorization: Bearer $TOKEN"
+# 4) Metadatos de descarga de un examen listo
+curl http://localhost:4000/api/v1/exams/$EXAM_ID/pdf -H "Authorization: Bearer $TOKEN"
+
+# 4b) Descargar el PDF real a un archivo
+curl http://localhost:4000/api/v1/exams/$EXAM_ID/pdf/file \
+  -H "Authorization: Bearer $TOKEN" -o resultado.pdf
 
 # 5) Enviar un mensaje de chat
 curl -X POST http://localhost:4000/api/v1/support/messages \
@@ -124,7 +138,7 @@ curl -X POST http://localhost:4000/api/v1/support/messages \
 |---|---|---|
 | 400 | `VALIDATION_ERROR` | El body/params no cumplen el schema (incluye `details` con cada campo) |
 | 401 | `UNAUTHORIZED` | Credenciales inválidas, o token ausente/inválido/expirado |
-| 404 | `NOT_FOUND` | El examen solicitado no existe |
+| 404 | `NOT_FOUND` | El examen no existe, o pertenece a otro paciente (a propósito no se distingue) |
 | 409 | `CONFLICT` | Usuario duplicado al registrarse, o PDF de un examen que aún no está listo |
 | 404 | `ROUTE_NOT_FOUND` | La ruta no existe |
 | 500 | `INTERNAL_SERVER_ERROR` | Error no controlado (no expone detalles internos al cliente) |
