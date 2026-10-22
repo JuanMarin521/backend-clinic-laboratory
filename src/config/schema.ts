@@ -17,11 +17,14 @@ export const SCHEMA_SQL = `
 
   CREATE TABLE IF NOT EXISTS exams (
     id         TEXT PRIMARY KEY,
+    user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name       TEXT NOT NULL,
     taken_date TEXT NOT NULL,
     site       TEXT NOT NULL,
     status     TEXT NOT NULL CHECK (status IN ('ready', 'processing', 'issue'))
   );
+
+  CREATE INDEX IF NOT EXISTS idx_exams_user_id ON exams(user_id);
 
   CREATE TABLE IF NOT EXISTS chat_messages (
     id         TEXT PRIMARY KEY,
