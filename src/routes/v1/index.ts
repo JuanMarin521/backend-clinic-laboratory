@@ -2,6 +2,8 @@ import { Router } from 'express';
 
 import { authRouter } from './auth.routes';
 import { examRouter } from './exam.routes';
+import { orderRouter } from './order.routes';
+import { profileRouter } from './profile.routes';
 import { supportRouter } from './support.routes';
 
 /**
@@ -18,6 +20,8 @@ router.get('/health', (_req, res) => {
 
 router.use('/auth', authRouter);
 router.use('/exams', examRouter);
+router.use('/orders', orderRouter);
+router.use('/profile', profileRouter);
 router.use('/support', supportRouter);
 
 export { router as v1Router };
