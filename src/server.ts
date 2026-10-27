@@ -1,7 +1,7 @@
 import { createApp } from './app';
 import { env } from './config/env';
 import { runMigrations } from './config/database';
-import { ensureDemoUserExists } from './services/authService';
+import { seedDatabase } from './seed/seedDatabase';
 
 /**
  * Punto de arranque del servidor.
@@ -12,10 +12,9 @@ async function bootstrap(): Promise<void> {
   // Crea las tablas de la base de datos si todavia no existen (seguro de repetir).
   runMigrations();
 
-  // Carga el usuario de demostracion y sus examenes. Al estar respaldados por una
-  // base de datos real, esto solo se inserta una vez: en los siguientes arranques
-  // ya existiran y no se duplica.
-  await ensureDemoUserExists();
+  // Carga los 10 pacientes de prueba con sus ordenes y examenes (ver src/seed/).
+  // Solo se insertan una vez: en los siguientes arranques ya existen y no se duplican.
+  await seedDatabase();
 
   const app = createApp();
 
@@ -25,7 +24,7 @@ async function bootstrap(): Promise<void> {
     // eslint-disable-next-line no-console
     console.log(`Base de datos SQLite en: ${env.databasePath}`);
     // eslint-disable-next-line no-console
-    console.log('Usuario de demostracion -> usuario: carlos.mendoza385 | contrasena: lab2026');
+    console.log('Usuarios de prueba (ver src/seed/seedUsers.ts) -> ej. carlos.mendoza385 | contrasena: lab2026');
   });
 }
 

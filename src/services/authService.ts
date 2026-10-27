@@ -1,10 +1,10 @@
 import { ConflictError, UnauthorizedError } from '../exceptions';
-import { seedDemoExamsForUser, seedStarterExamsForUser } from '../repositories/examRepository';
+import { createOrderWithExams } from '../repositories/orderRepository';
+import { buildStarterOrder } from '../seed/orderGenerator';
 import {
   createUser,
   findUserByUsername,
   normalizeUsername,
-  seedDemoUser,
 } from '../repositories/userRepository';
 import { comparePassword, hashPassword } from '../utils/password';
 import { signAccessToken } from '../utils/jwt';
@@ -35,9 +35,9 @@ export async function registerUser(input: RegisterInput): Promise<AuthResult> {
   const passwordHash = await hashPassword(input.password);
   const newUser = createUser({ fullName: input.fullName, username: input.username, passwordHash });
 
-  // Todo paciente nuevo arranca con un par de examenes de ejemplo propios,
-  // para que la pantalla de Resultados no se vea vacia justo despues de registrarse.
-  seedStarterExamsForUser(newUser.id);
+  // Todo paciente nuevo arranca con una orden de ejemplo (fecha de hoy, 8 examenes en proceso),
+  // para que la pantalla de Resultados no se vea vacia al registrarse.
+  createOrderWithExams(newUser.id, buildStarterOrder());
 
   const publicUser = toPublicUser(newUser);
   return { user: publicUser, token: signAccessToken(publicUser) };
@@ -64,17 +64,6 @@ export async function loginUser(input: LoginInput): Promise<AuthResult> {
 
   const publicUser = toPublicUser(user);
   return { user: publicUser, token: signAccessToken(publicUser) };
-}
-
-/**
- * Crea el usuario de demostracion ("carlos.mendoza385" / "lab2026") al arrancar el servidor,
- * junto con su conjunto de examenes de demostracion, para que el login y la pantalla
- * de Resultados funcionen de inmediato sin tener que registrarse primero.
- */
-export async function ensureDemoUserExists(): Promise<void> {
-  const demoPasswordHash = await hashPassword('lab2026');
-  const demoUser = seedDemoUser(demoPasswordHash);
-  seedDemoExamsForUser(demoUser.id);
 }
 
 // Se re-exporta para que otras capas (ej. authMiddleware) puedan normalizar nombres de usuario

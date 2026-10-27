@@ -3,13 +3,8 @@ import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { ConflictError, NotFoundError } from '../exceptions';
 import { findExamByIdForUser, findExamsByUserId } from '../repositories/examRepository';
 import type { ExamPdfResponse, ExamRecord, ExamStatus } from '../types/exam.types';
-
-/** Resumen de cuantos examenes hay en cada estado (para las tarjetas "semaforo" del Home). */
-export interface ExamSummary {
-  ready: number;
-  processing: number;
-  issue: number;
-}
+import type { ExamSummary } from '../types/order.types';
+import { formatLongDate } from '../utils/dates';
 
 /** Forma de la respuesta del listado de examenes. */
 export interface ExamListResult {
@@ -18,7 +13,7 @@ export interface ExamListResult {
 }
 
 /** Calcula cuantos examenes hay por cada estado. */
-function summarize(exams: ExamRecord[]): ExamSummary {
+export function summarize(exams: ExamRecord[]): ExamSummary {
   const summary: ExamSummary = { ready: 0, processing: 0, issue: 0 };
 
   exams.forEach((exam) => {
@@ -104,7 +99,8 @@ export async function generateExamPdfFile(
   writeLine('Resultado de examen de laboratorio', { size: 12, gap: 32 });
 
   writeLine(exam.name, { size: 16, bold: true, gap: 26 });
-  writeLine(`Fecha de toma de muestra: ${exam.takenDate}`);
+  writeLine(`Orden: #${exam.orderNumber}`);
+  writeLine(`Fecha de toma de muestra: ${formatLongDate(exam.takenDate)}`);
   writeLine(`Sede: ${exam.site}`);
   writeLine(`Estado: ${exam.status === 'ready' ? 'Listo' : exam.status}`, { gap: 34 });
 
