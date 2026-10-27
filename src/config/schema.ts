@@ -12,19 +12,46 @@ export const SCHEMA_SQL = `
     full_name     TEXT NOT NULL,
     username      TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
-    created_at    TEXT NOT NULL
+    created_at    TEXT NOT NULL,
+    -- Datos del perfil del paciente (opcionales: el paciente los completa desde la app).
+    document_number TEXT,
+    email           TEXT,
+    phone           TEXT,
+    address         TEXT,
+    birth_date      TEXT -- formato ISO "YYYY-MM-DD"
   );
 
+  -- Una orden agrupa los examenes que un paciente se tomo en una misma visita al laboratorio.
+  -- order_number: numero de orden de 6 digitos (ej. "546237"), unico en todo el sistema.
+  -- order_date: fecha de la visita en formato ISO "YYYY-MM-DD" (asi se puede ordenar como texto).
+  -- UNIQUE (user_id, order_date): un paciente solo puede tener UNA orden por dia.
+  CREATE TABLE IF NOT EXISTS orders (
+    id           TEXT PRIMARY KEY,
+    user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    order_number TEXT NOT NULL UNIQUE CHECK (length(order_number) = 6),
+    order_date   TEXT NOT NULL,
+    site         TEXT NOT NULL,
+    UNIQUE (user_id, order_date)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
+
+  -- Cada examen pertenece a una orden (y a traves de ella, a un unico paciente).
+  -- La fecha y la sede ya no se guardan aqui: son las de su orden.
   CREATE TABLE IF NOT EXISTS exams (
-    id         TEXT PRIMARY KEY,
-    user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    name       TEXT NOT NULL,
-    taken_date TEXT NOT NULL,
-    site       TEXT NOT NULL,
-    status     TEXT NOT NULL CHECK (status IN ('ready', 'processing', 'issue'))
+    id       TEXT PRIMARY KEY,
+    order_id TEXT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    name     TEXT NOT NULL,
+    status   TEXT NOT NULL CHECK (status IN ('ready', 'processing', 'issue'))
   );
 
-  CREATE INDEX IF NOT EXISTS idx_exams_user_id ON exams(user_id);
+  CREATE INDEX IF NOT EXISTS idx_exams_order_id ON exams(order_id);
+
+  -- Pares clave/valor internos del servidor (ej. que version de los datos de prueba esta cargada).
+  CREATE TABLE IF NOT EXISTS app_meta (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  );
 
   CREATE TABLE IF NOT EXISTS chat_messages (
     id         TEXT PRIMARY KEY,
