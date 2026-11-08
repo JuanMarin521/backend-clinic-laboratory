@@ -37,6 +37,18 @@ export function findOrdersByUserId(userId: string): OrderRecord[] {
   return rows.map(toOrderRecord);
 }
 
+/**
+ * Busca una orden por su numero, PERO solo si pertenece al paciente indicado.
+ * Si es de otro paciente devuelve `undefined`, igual que si no existiera.
+ */
+export function findOrderByNumberForUser(orderNumber: string, userId: string): OrderRecord | undefined {
+  const row = db
+    .prepare<[string, string], OrderRow>('SELECT * FROM orders WHERE order_number = ? AND user_id = ?')
+    .get(orderNumber, userId);
+
+  return row ? toOrderRecord(row) : undefined;
+}
+
 /** Devuelve la orden mas reciente de un paciente (la de su ultima visita), o `undefined` si no tiene. */
 export function findLatestOrderByUserId(userId: string): OrderRecord | undefined {
   const row = db
