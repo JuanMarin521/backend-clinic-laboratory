@@ -1,7 +1,14 @@
-import { NotFoundError, ValidationError } from '../exceptions';
-import { findUserById, updateUserPassword, updateUserProfile } from '../repositories/userRepository';
+import { ConflictError, NotFoundError, ValidationError } from '../exceptions';
+import {
+  findUserByDocumentNumber,
+  findUserById,
+  updateUserPassword,
+  updateUserProfile,
+} from '../repositories/userRepository';
 import type { UpdateProfileInput, UserProfile, UserRecord } from '../types/user.types';
 import { comparePassword, hashPassword } from '../utils/password';
+import { DUPLICATED_DOCUMENT_MESSAGE } from './authService';
+import { revokeAllDevicesForUser } from './biometricAuthService';
 
 /** Convierte el registro interno en el perfil que ve la app (SIN el hash de la contrasena). */
 function toUserProfile(user: UserRecord): UserProfile {
@@ -33,6 +40,13 @@ export function getProfile(userId: string): UserProfile {
 /** Actualiza el nombre y los datos de contacto del paciente. Devuelve el perfil actualizado. */
 export function updateProfile(userId: string, input: UpdateProfileInput): UserProfile {
   getUserOrThrow(userId);
+
+  // El documento no puede quedar igual al de otra cuenta (409).
+  if (input.documentNumber) {
+    const owner = findUserByDocumentNumber(input.documentNumber);
+    if (owner && owner.id !== userId) throw new ConflictError(DUPLICATED_DOCUMENT_MESSAGE);
+  }
+
   const updated = updateUserProfile(userId, input);
   return toUserProfile(updated ?? getUserOrThrow(userId));
 }
@@ -53,4 +67,8 @@ export async function changePassword(userId: string, currentPassword: string, ne
   }
 
   updateUserPassword(userId, await hashPassword(newPassword));
+
+  // Con la contrasena nueva, ningun celular debe seguir entrando con la credencial anterior:
+  // el ingreso biometrico se desactiva en todos los dispositivos y hay que volver a activarlo.
+  revokeAllDevicesForUser(userId, 'password_change');
 }

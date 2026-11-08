@@ -47,6 +47,31 @@ export const SCHEMA_SQL = `
 
   CREATE INDEX IF NOT EXISTS idx_exams_order_id ON exams(order_id);
 
+  -- Credenciales biometricas de dispositivo: cada celular que activa el ingreso con huella
+  -- recibe un token propio. Aqui solo se guarda el HASH del secreto (nunca el secreto).
+  -- revoked_reason: 'rotated' (se cambio por uno nuevo al usarse), 'disabled', 'logout',
+  -- 'password_change' o 'reuse_detected' (alguien uso un token ya rotado: posible robo).
+  CREATE TABLE IF NOT EXISTS device_credentials (
+    id             TEXT PRIMARY KEY,
+    user_id        TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    secret_hash    TEXT NOT NULL,
+    device_name    TEXT NOT NULL,
+    created_at     TEXT NOT NULL,
+    expires_at     TEXT NOT NULL,
+    revoked_at     TEXT,
+    revoked_reason TEXT
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_device_credentials_user_id ON device_credentials(user_id);
+
+  -- Intentos fallidos de contrasena por nombre de usuario (para el bloqueo temporal).
+  CREATE TABLE IF NOT EXISTS login_attempts (
+    username        TEXT PRIMARY KEY,
+    failed_count    INTEGER NOT NULL,
+    last_failed_at  TEXT NOT NULL,
+    locked_until    TEXT
+  );
+
   -- Pares clave/valor internos del servidor (ej. que version de los datos de prueba esta cargada).
   CREATE TABLE IF NOT EXISTS app_meta (
     key   TEXT PRIMARY KEY,
