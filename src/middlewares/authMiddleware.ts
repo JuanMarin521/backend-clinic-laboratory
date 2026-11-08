@@ -16,7 +16,7 @@ export function authMiddleware(req: Request, _res: Response, next: NextFunction)
   const authHeader = req.header('Authorization');
 
   if (!authHeader || !authHeader.startsWith(BEARER_PREFIX)) {
-    next(new UnauthorizedError('Falta el token de autenticacion. Inicia sesion nuevamente.'));
+    next(new UnauthorizedError('Falta el token de autenticacion. Inicia sesion nuevamente.', 'SESSION_INVALID'));
     return;
   }
 
@@ -27,13 +27,13 @@ export function authMiddleware(req: Request, _res: Response, next: NextFunction)
     const user = findUserById(payload.sub);
 
     if (!user) {
-      next(new UnauthorizedError('El usuario del token ya no existe.'));
+      next(new UnauthorizedError('El usuario del token ya no existe.', 'SESSION_INVALID'));
       return;
     }
 
     req.user = toPublicUser(user);
     next();
   } catch {
-    next(new UnauthorizedError('El token es invalido o ya expiro. Inicia sesion nuevamente.'));
+    next(new UnauthorizedError('Tu sesion vencio. Inicia sesion nuevamente.', 'SESSION_INVALID'));
   }
 }

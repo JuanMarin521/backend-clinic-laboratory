@@ -1,5 +1,5 @@
 import { db } from '../config/database';
-import type { UpdateProfileInput, UserRecord } from '../types/user.types';
+import type { ProfileFields, UpdateProfileInput, UserRecord } from '../types/user.types';
 
 /**
  * Repositorio de usuarios, respaldado por una base de datos SQLite real (tabla `users`).
@@ -52,36 +52,44 @@ export function findUserByUsername(username: string): UserRecord | undefined {
   return row ? toUserRecord(row) : undefined;
 }
 
+/** Busca un usuario por su numero de documento. Devuelve `undefined` si no existe. */
+export function findUserByDocumentNumber(documentNumber: string): UserRecord | undefined {
+  const row = db.prepare<[string], UserRow>('SELECT * FROM users WHERE document_number = ?').get(documentNumber);
+  return row ? toUserRecord(row) : undefined;
+}
+
 /** Busca un usuario por su identificador. Devuelve `undefined` si no existe. */
 export function findUserById(id: string): UserRecord | undefined {
   const row = db.prepare<[string], UserRow>('SELECT * FROM users WHERE id = ?').get(id);
   return row ? toUserRecord(row) : undefined;
 }
 
-/** Crea y guarda un nuevo usuario en la base de datos. */
-export function createUser(data: { fullName: string; username: string; passwordHash: string }): UserRecord {
+/** Crea y guarda un nuevo usuario en la base de datos (los datos de perfil son opcionales). */
+export function createUser(data: {
+  fullName: string;
+  username: string;
+  passwordHash: string;
+  profile?: Partial<ProfileFields>;
+}): UserRecord {
   const newUser: UserRecord = {
     id: `user_${Date.now()}_${Math.round(Math.random() * 1_000_000)}`,
     fullName: data.fullName.trim(),
     username: normalizeUsername(data.username),
     passwordHash: data.passwordHash,
     createdAt: new Date().toISOString(),
-    documentNumber: null,
-    email: null,
-    phone: null,
-    address: null,
-    birthDate: null,
+    documentNumber: data.profile?.documentNumber ?? null,
+    email: data.profile?.email ?? null,
+    phone: data.profile?.phone ?? null,
+    address: data.profile?.address ?? null,
+    birthDate: data.profile?.birthDate ?? null,
   };
 
   db.prepare(
-    'INSERT INTO users (id, full_name, username, password_hash, created_at) VALUES (@id, @fullName, @username, @passwordHash, @createdAt)',
-  ).run({
-    id: newUser.id,
-    fullName: newUser.fullName,
-    username: newUser.username,
-    passwordHash: newUser.passwordHash,
-    createdAt: newUser.createdAt,
-  });
+    `INSERT INTO users (id, full_name, username, password_hash, created_at,
+                        document_number, email, phone, address, birth_date)
+     VALUES (@id, @fullName, @username, @passwordHash, @createdAt,
+             @documentNumber, @email, @phone, @address, @birthDate)`,
+  ).run(newUser);
 
   return newUser;
 }

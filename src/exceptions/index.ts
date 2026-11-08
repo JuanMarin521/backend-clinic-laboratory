@@ -4,3 +4,4 @@ export { ValidationError } from './ValidationError';
 export { UnauthorizedError } from './UnauthorizedError';
 export { NotFoundError } from './NotFoundError';
 export { ConflictError } from './ConflictError';
+export { TooManyRequestsError } from './TooManyRequestsError';

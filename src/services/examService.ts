@@ -1,10 +1,10 @@
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
-
 import { ConflictError, NotFoundError } from '../exceptions';
 import { findExamByIdForUser, findExamsByUserId } from '../repositories/examRepository';
+import { findUserById } from '../repositories/userRepository';
 import type { ExamPdfResponse, ExamRecord, ExamStatus } from '../types/exam.types';
 import type { ExamSummary } from '../types/order.types';
-import { formatLongDate } from '../utils/dates';
+import { toPdfFileName } from '../utils/fileName';
+import { buildResultsPdf } from './pdf/resultsPdfDocument';
 
 /** Forma de la respuesta del listado de examenes. */
 export interface ExamListResult {
@@ -58,7 +58,7 @@ export function getExamPdfInfo(examId: string, userId: string): ExamPdfResponse 
 
   return {
     examId: exam.id,
-    fileName: `${exam.name.replace(/\s+/g, '_')}.pdf`,
+    fileName: toPdfFileName(exam.name),
     // Ruta real del endpoint que entrega los bytes del PDF (ver examController.downloadExamPdf).
     downloadUrl: `/api/v1/exams/${exam.id}/pdf/file`,
     generatedAt: new Date().toISOString(),
@@ -66,7 +66,7 @@ export function getExamPdfInfo(examId: string, userId: string): ExamPdfResponse 
 }
 
 /**
- * Genera el archivo PDF real (en memoria, con `pdf-lib`) del resultado de un examen.
+ * Genera el archivo PDF real (en memoria) del resultado de un examen.
  * Reusa las mismas validaciones de propiedad y estado que `getExamPdfInfo`.
  */
 export async function generateExamPdfFile(
@@ -75,47 +75,14 @@ export async function generateExamPdfFile(
 ): Promise<{ fileName: string; bytes: Uint8Array }> {
   const exam = getDownloadableExam(examId, userId);
 
-  const document = await PDFDocument.create();
-  const page = document.addPage([420, 560]);
-  const regularFont = await document.embedFont(StandardFonts.Helvetica);
-  const boldFont = await document.embedFont(StandardFonts.HelveticaBold);
-
-  const marginX = 40;
-  let cursorY = 500;
-
-  const writeLine = (text: string, options: { size?: number; bold?: boolean; gap?: number } = {}) => {
-    const { size = 12, bold = false, gap = 22 } = options;
-    page.drawText(text, {
-      x: marginX,
-      y: cursorY,
-      size,
-      font: bold ? boldFont : regularFont,
-      color: rgb(0.1, 0.1, 0.1),
-    });
-    cursorY -= gap;
-  };
-
-  writeLine('CPO Conecta', { size: 20, bold: true, gap: 28 });
-  writeLine('Resultado de examen de laboratorio', { size: 12, gap: 32 });
-
-  writeLine(exam.name, { size: 16, bold: true, gap: 26 });
-  writeLine(`Orden: #${exam.orderNumber}`);
-  writeLine(`Fecha de toma de muestra: ${formatLongDate(exam.takenDate)}`);
-  writeLine(`Sede: ${exam.site}`);
-  writeLine(`Estado: ${exam.status === 'ready' ? 'Listo' : exam.status}`, { gap: 34 });
-
-  page.drawLine({
-    start: { x: marginX, y: cursorY },
-    end: { x: 420 - marginX, y: cursorY },
-    thickness: 1,
-    color: rgb(0.8, 0.8, 0.8),
+  const bytes = await buildResultsPdf({
+    patientName: findUserById(userId)?.fullName ?? 'Paciente',
+    orderNumber: exam.orderNumber,
+    orderDate: exam.takenDate,
+    site: exam.site,
+    validatedExams: [exam.name],
+    pendingCount: 0,
   });
-  cursorY -= 24;
 
-  writeLine('Este documento es una demostración generada automáticamente', { size: 9, gap: 14 });
-  writeLine('por CPO Conecta y no sustituye un resultado médico oficial.', { size: 9, gap: 14 });
-
-  const bytes = await document.save();
-
-  return { fileName: `${exam.name.replace(/\s+/g, '_')}.pdf`, bytes };
+  return { fileName: toPdfFileName(exam.name), bytes };
 }

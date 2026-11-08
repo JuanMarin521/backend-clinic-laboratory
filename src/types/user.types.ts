@@ -38,11 +38,16 @@ export interface UpdateProfileInput extends ProfileFields {
   fullName: string;
 }
 
-/** Datos necesarios para registrar un nuevo usuario. */
+/** Datos necesarios para registrar un nuevo paciente (todos obligatorios). */
 export interface RegisterInput {
   fullName: string;
   username: string;
   password: string;
+  documentNumber: string;
+  birthDate: string;
+  phone: string;
+  email: string;
+  address: string;
 }
 
 /** Datos necesarios para iniciar sesion. */
