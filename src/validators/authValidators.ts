@@ -1,13 +1,14 @@
 import { z } from 'zod';
 
 import { MIN_PASSWORD_LENGTH, MIN_USERNAME_LENGTH } from '../config/constants';
+import { patientFieldRules } from './profileValidators';
 
-/** Reglas de validacion para el registro de un nuevo usuario. */
+/**
+ * Reglas de validacion para el registro de un nuevo paciente.
+ * Ademas de usuario y contrasena, todos los datos personales son obligatorios.
+ */
 export const registerSchema = z.object({
-  fullName: z
-    .string({ required_error: 'El nombre completo es obligatorio.' })
-    .trim()
-    .min(3, 'El nombre completo debe tener al menos 3 caracteres.'),
+  fullName: patientFieldRules.fullName,
   username: z
     .string({ required_error: 'El usuario es obligatorio.' })
     .trim()
@@ -16,6 +17,11 @@ export const registerSchema = z.object({
   password: z
     .string({ required_error: 'La contrasena es obligatoria.' })
     .min(MIN_PASSWORD_LENGTH, `La contrasena debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres.`),
+  documentNumber: patientFieldRules.documentNumber,
+  birthDate: patientFieldRules.birthDate,
+  phone: patientFieldRules.phone,
+  email: patientFieldRules.email,
+  address: patientFieldRules.address,
 });
 
 /** Reglas de validacion para el inicio de sesion. */
