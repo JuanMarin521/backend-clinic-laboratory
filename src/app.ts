@@ -1,5 +1,6 @@
 import cors from 'cors';
 import express, { type Express } from 'express';
+import helmet from 'helmet';
 
 import { API_BASE_PATH } from './config/constants';
 import { env } from './config/env';
@@ -14,7 +15,8 @@ import { apiRouter } from './routes';
  * no contiene logica de negocio ni de acceso a datos.
  *
  * Orden de los middlewares (importa mucho el orden en Express):
- * 1. cors            -> habilita que la app movil/web consuma la API desde otro origen.
+ * 1. helmet          -> cabeceras HTTP de seguridad estandar (sin informacion del servidor, sin sniffing, etc.).
+ *    cors            -> solo los origenes configurados en CORS_ORIGIN (relevante para la version web).
  * 2. express.json    -> parsea el body de las peticiones como JSON.
  * 3. requestLogger   -> registra cada peticion entrante.
  * 4. apiRouter       -> todas las rutas de negocio, versionadas (/api/v1/...).
@@ -24,7 +26,8 @@ import { apiRouter } from './routes';
 export function createApp(): Express {
   const app = express();
 
-  app.use(cors({ origin: env.corsOrigin }));
+  app.use(helmet());
+  app.use(cors({ origin: env.corsOrigins }));
   app.use(express.json());
   app.use(requestLogger);
 

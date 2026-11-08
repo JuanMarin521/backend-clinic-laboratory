@@ -71,6 +71,23 @@ function addUserProfileColumns(): void {
 }
 
 /**
+ * Indice UNICO sobre el documento (solo filas con documento). Garantiza en la base de datos
+ * que no haya dos cuentas con la misma cedula, ademas de la validacion del servicio.
+ * Si una base vieja ya tiene documentos repetidos, no se puede crear: se avisa en consola
+ * y la validacion del servicio sigue protegiendo los registros nuevos.
+ */
+function ensureUniqueDocumentIndex(): void {
+  try {
+    db.exec(
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_users_document_number ON users(document_number) WHERE document_number IS NOT NULL',
+    );
+  } catch {
+    // eslint-disable-next-line no-console
+    console.warn('Aviso: hay documentos repetidos en "users"; no se creo el indice unico. Ejecuta "npm run db:reset".');
+  }
+}
+
+/**
  * Crea las tablas de la base de datos si todavia no existen.
  * Se llama una sola vez al arrancar el servidor (ver `server.ts`).
  */
@@ -78,4 +95,5 @@ export function runMigrations(): void {
   migrateLegacyExamsTable();
   db.exec(SCHEMA_SQL);
   addUserProfileColumns();
+  ensureUniqueDocumentIndex();
 }
