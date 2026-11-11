@@ -1,4 +1,4 @@
-# CPO Conecta API
+ # CPO Conecta API
 
 REST API for the CPO Conecta patient application. The backend is a Node.js, Express, and TypeScript service with SQLite persistence, versioned routes, JWT authentication, PDF generation, biometric device credentials, and an optional Gemini-backed support assistant.
 
@@ -37,18 +37,7 @@ src/
 ├── seed/          Explicit development/test demo data
 └── server.ts      Migrations, optional seed, and HTTP startup
 ```
-
-```mermaid
-flowchart LR
-    Client[Expo client] --> Routes[/api/v1 routes]
-    Routes --> Middleware[Validation + JWT middleware]
-    Middleware --> Controllers[Controllers]
-    Controllers --> Services[Application services]
-    Services --> Repositories[SQLite repositories]
-    Repositories --> Database[(SQLite database)]
-    Services --> Pdf[pdf-lib]
-    Services -. optional .-> Gemini[Google Gemini]
-```
+<img width="6600" height="1202" alt="image" src="https://github.com/user-attachments/assets/2cefab3b-c1e8-4034-a71e-df90414216b9" />
 
 The normal request path is `route → middleware → controller → service → repository`. SQL is kept in repositories; services do not depend on Express request/response objects.
 
